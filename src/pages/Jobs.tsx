@@ -1,21 +1,52 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { mockJobs } from '../data/mockData';
-import { Search, MapPin, Briefcase, Clock, ArrowRight } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
+import type { Job } from '../data/mockData';
+import { Search, MapPin, Briefcase, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Jobs() {
+  const [jobs, setJobs] = React.useState<Job[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [departmentFilter, setDepartmentFilter] = React.useState('All');
 
-  const departments = ['All', ...Array.from(new Set(mockJobs.map(job => job.department)))];
+  React.useEffect(() => {
+    fetchJobs();
+  }, []);
 
-  const filteredJobs = mockJobs.filter(job => {
-    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          job.description.toLowerCase().includes(searchTerm.toLowerCase());
+  const fetchJobs = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching jobs:', error);
+    } else {
+      setJobs(data || []);
+    }
+    setLoading(false);
+  };
+
+  const departments = ['All', ...Array.from(new Set(jobs.map(job => job.department)))];
+
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = departmentFilter === 'All' || job.department === departmentFilter;
     return matchesSearch && matchesDepartment;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
@@ -30,9 +61,9 @@ export default function Jobs() {
       <div className="glass-panel p-6 rounded-2xl mb-12 flex flex-col md:flex-row gap-4 shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder="Search jobs..." 
+          <input
+            type="text"
+            placeholder="Search jobs..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-sm transition-all"
@@ -43,11 +74,10 @@ export default function Jobs() {
             <button
               key={dept}
               onClick={() => setDepartmentFilter(dept)}
-              className={`px-6 py-3 rounded-xl font-mono text-sm whitespace-nowrap transition-all ${
-                departmentFilter === dept 
-                  ? 'bg-primary text-white shadow-md shadow-primary/20' 
+              className={`px-6 py-3 rounded-xl font-mono text-sm whitespace-nowrap transition-all ${departmentFilter === dept
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
                   : 'bg-white/50 text-slate-600 hover:bg-white/80 border border-slate-200'
-              }`}
+                }`}
             >
               {dept}
             </button>
@@ -59,7 +89,7 @@ export default function Jobs() {
       <div className="grid gap-6">
         {filteredJobs.length > 0 ? (
           filteredJobs.map((job, index) => (
-            <motion.div 
+            <motion.div
               key={job.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -94,9 +124,9 @@ export default function Jobs() {
                     {job.description}
                   </p>
                 </div>
-                
+
                 <div className="flex items-center md:justify-end">
-                  <Link 
+                  <Link
                     to={`/apply/${job.id}`}
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-900 text-white font-medium hover:bg-primary transition-all shadow-md group-hover:shadow-lg group-hover:-translate-y-0.5"
                   >

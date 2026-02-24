@@ -1,26 +1,42 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail } from 'lucide-react';
+import { useAuth } from '../lib/AuthContext';
+import { Lock, Mail, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function HRLogin() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
   const navigate = useNavigate();
+  const { signIn, user } = useAuth();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email === 'hr@thelixholdings.com' && password === 'admin') {
-      navigate('/hr/dashboard');
-    } else {
-      setError('Invalid credentials. Use hr@thelixholdings.com / admin');
+  // Redirect if already logged in
+  React.useEffect(() => {
+    if (user) {
+      navigate('/hr/dashboard', { replace: true });
     }
+  }, [user, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const { error: signInError } = await signIn(email, password);
+
+    if (signInError) {
+      setError('Invalid credentials. Please check your email and password.');
+    } else {
+      navigate('/hr/dashboard');
+    }
+    setLoading(false);
   };
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 sm:px-6 lg:px-8">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -88,20 +104,22 @@ export default function HRLogin() {
                   Remember me
                 </label>
               </div>
-
-              <div className="text-sm">
-                <a href="#" className="font-medium text-primary hover:text-primary/80 font-mono">
-                  Forgot password?
-                </a>
-              </div>
             </div>
 
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all hover:-translate-y-0.5"
+                disabled={loading}
+                className="w-full flex justify-center items-center gap-2 py-4 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all hover:-translate-y-0.5 disabled:opacity-50"
               >
-                Sign in
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign in'
+                )}
               </button>
             </div>
           </form>
