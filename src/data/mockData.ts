@@ -33,6 +33,9 @@ export interface Applicant {
   email_sent: boolean;
   email_sent_at: string | null;
   cover_letter: string | null;
+  years_of_experience: string | null;
+  video_url: string | null;
+  video_summary: string | null;
   created_at: string;
   // Joined data
   jobs?: Job;

@@ -2,7 +2,7 @@ import React from "react";
 import { Icon } from "lucide-react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    icon: React.ReactElement<Icon>;
+    icon: React.ReactElement;
     title: string;
     subtitle?: string;
     size?: "sm" | "md" | "lg";

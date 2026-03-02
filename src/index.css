@@ -3,8 +3,8 @@
 @theme {
   --font-sans: "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
-  --color-primary: #2575FC;
-  --color-accent: #F48220;
+  --color-primary: #F48220;
+  --color-accent: #2575FC;
 }
 
 body {
@@ -35,9 +35,9 @@ h1, h2, h3, h4, h5, h6 {
 .bg-mesh {
   background-color: #f8fafc;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(37, 117, 252, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(244, 130, 32, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(37, 117, 252, 0.15) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(244, 130, 32, 0.15) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(244, 130, 32, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(37, 117, 252, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(244, 130, 32, 0.15) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(37, 117, 252, 0.15) 0px, transparent 50%);
   background-attachment: fixed;
 }

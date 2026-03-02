@@ -6,7 +6,7 @@ import {
   Search, Download, User, Briefcase, Calendar, CheckCircle2, XCircle, Clock,
   Send, ExternalLink, LogOut, Loader2, FileText, Star, MessageSquare,
   AlertCircle, X, Phone, Mail, Plus, Pencil, Trash2, ToggleLeft, ToggleRight,
-  ChevronDown
+  ChevronDown, Video
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -39,7 +39,17 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
 
 /* ───────── Main Dashboard ───────── */
 export default function HRDashboard() {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+
+  // Greeting Logic
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+  const greeting = getGreeting();
+  const firstName = user?.user_metadata?.first_name || user?.user_metadata?.full_name?.split(' ')[0] || user?.user_metadata?.name?.split(' ')[0] || 'User';
 
   // Tab state
   const [activeTab, setActiveTab] = React.useState<'applicants' | 'jobs'>('applicants');
@@ -95,6 +105,53 @@ export default function HRDashboard() {
     setLoadingApplicants(false);
   };
 
+  React.useEffect(() => {
+    // Set up realtime subscription for applicants table
+    const subscription = supabase
+      .channel('public:applicants')
+      .on(
+        'postgres_changes',
+        { event: '*', scheme: 'public', table: 'applicants' },
+        (payload: any) => {
+          console.log('Realtime update received:', payload);
+
+          if (payload.eventType === 'INSERT') {
+            const newApplicant = payload.new as Applicant;
+            setApplicants(prev => [newApplicant, ...prev]);
+          }
+          else if (payload.eventType === 'UPDATE') {
+            const updatedApplicant = payload.new as Applicant;
+            setApplicants(prev => prev.map(a => {
+              if (a.id === updatedApplicant.id) {
+                // Preserve the nested 'jobs' data which isn't sent in the realtime payload
+                return { ...a, ...updatedApplicant, jobs: a.jobs };
+              }
+              return a;
+            }));
+
+            // Update selected applicant if it's the one being edited
+            setSelectedApplicant(prev => {
+              if (prev?.id === updatedApplicant.id) {
+                return { ...prev, ...updatedApplicant, jobs: prev.jobs };
+              }
+              return prev;
+            });
+          }
+          else if (payload.eventType === 'DELETE') {
+            setApplicants(prev => prev.filter(a => a.id !== payload.old.id));
+            setSelectedApplicant(prev => prev?.id === payload.old.id ? null : prev);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
+
   const handleStatusChange = async (applicantId: string, newStatus: string) => {
     const { error } = await supabase.from('applicants').update({ status: newStatus }).eq('id', applicantId);
     if (error) { console.error(error); showToast('Failed to update status', 'error'); }
@@ -138,8 +195,13 @@ export default function HRDashboard() {
         tccScore: String(applicant.tcc_score ?? ''),
         status: applicant.status,
       });
-      const response = await fetch(`${WEBHOOK_URL}?${params.toString()}`);
-      if (response.ok) {
+      const { data: webhookResponse, error: proxyError } = await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          targetUrl: `${WEBHOOK_URL}?${params.toString()}`,
+          method: 'GET'
+        }
+      });
+      if (!proxyError && webhookResponse?.success) {
         await supabase.from('applicants')
           .update({ email_sent: true, email_sent_at: new Date().toISOString(), email_draft: draftToSend })
           .eq('id', applicant.id);
@@ -148,9 +210,9 @@ export default function HRDashboard() {
         if (selectedApplicant?.id === applicant.id) setSelectedApplicant(updated);
         showToast('Email sent successfully');
       } else {
-        const errText = await response.text();
-        console.error('Webhook response:', response.status, errText);
-        showToast(`Webhook error (${response.status}): ${errText || 'Unknown error'}`, 'error');
+        const errText = proxyError || webhookResponse?.error || 'Unknown error';
+        console.error('Webhook response error:', errText);
+        showToast(`Webhook error: ${errText}`, 'error');
       }
     } catch (err) {
       console.error('Webhook error:', err);
@@ -262,7 +324,7 @@ export default function HRDashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">HR Dashboard</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{greeting}, {firstName}</h1>
           <p className="text-slate-500 font-mono text-sm">Manage applicants and job postings</p>
         </div>
         <button onClick={signOut} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 text-rose-600 font-medium hover:bg-rose-100 transition-all font-mono text-sm shadow-sm border border-rose-100">
@@ -465,163 +527,274 @@ export default function HRDashboard() {
               className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden border border-white/60" onClick={e => e.stopPropagation()}>
 
               {/* ── Premium Header ── */}
-              <div className="relative bg-gradient-to-r from-primary via-primary/90 to-primary px-8 py-7 overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
-                <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-white/10 rounded-full blur-3xl translate-y-1/2"></div>
+              <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-8 py-10 overflow-hidden">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/4 animate-pulse"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/10 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/4"></div>
+
                 <div className="relative flex items-center justify-between">
-                  <div className="flex items-center gap-5">
-                    <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-black/20 border border-white/20">
-                      {selectedApplicant.first_name.charAt(0)}{selectedApplicant.last_name.charAt(0)}
+                  <div className="flex items-center gap-6">
+                    <div className="relative group">
+                      <div className="absolute -inset-1 bg-gradient-to-tr from-primary to-accent rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
+                      <div className="relative h-20 w-20 rounded-2xl bg-slate-800 flex items-center justify-center text-white font-bold text-2xl shadow-2xl border border-white/10">
+                        {selectedApplicant.first_name.charAt(0)}{selectedApplicant.last_name.charAt(0)}
+                      </div>
                     </div>
+
                     <div>
-                      <h2 className="text-2xl font-bold text-white tracking-tight">{selectedApplicant.first_name} {selectedApplicant.last_name}</h2>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-white/60 text-sm font-mono">{selectedApplicant.position || 'No position'}</span>
-                        <span className="text-white/30">&bull;</span>
-                        <select value={selectedApplicant.status} onChange={e => handleStatusChange(selectedApplicant.id, e.target.value)}
-                          className={`px-3 py-1 text-xs font-semibold rounded-full border cursor-pointer focus:outline-none ${getStatusColor(selectedApplicant.status)} font-mono`}>
-                          {statuses.filter(s => s !== 'All').map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                      <h2 className="text-3xl font-black text-white tracking-tight mb-2">
+                        {selectedApplicant.first_name} {selectedApplicant.last_name}
+                      </h2>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-white/70 text-sm font-mono flex items-center gap-2">
+                          <Briefcase className="w-3.5 h-3.5" /> {selectedApplicant.position || 'No position'}
+                        </span>
+                        <span className="px-3 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 text-sm font-mono flex items-center gap-2 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
+                          <Clock className="w-3.5 h-3.5" /> <span className="text-amber-400/60 mr-1 italic">Exp:</span> {selectedApplicant.years_of_experience || 'Not specified'}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white/20">|</span>
+                          <select value={selectedApplicant.status} onChange={e => handleStatusChange(selectedApplicant.id, e.target.value)}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-xl border-2 transition-all cursor-pointer focus:outline-none appearance-none hover:scale-105 ${getStatusColor(selectedApplicant.status)} font-mono shadow-lg`}>
+                            {statuses.filter(s => s !== 'All').map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => setSelectedApplicant(null)} className="p-2.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all duration-200">
-                    <X className="w-5 h-5" />
+
+                  <button onClick={() => setSelectedApplicant(null)}
+                    className="p-3 rounded-2xl bg-white/5 text-white/40 hover:text-white hover:bg-white/10 hover:rotate-90 transition-all duration-300 border border-white/5">
+                    <X className="w-6 h-6" />
                   </button>
                 </div>
               </div>
 
               {/* ── Body ── */}
-              <div className="overflow-y-auto max-h-[calc(92vh-120px)]">
-                <div className="p-8">
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+              <div className="overflow-y-auto max-h-[calc(92vh-160px)] custom-scrollbar">
+                <div className="p-10">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
-                    {/* ── Left Column (3/5) ── */}
-                    <div className="lg:col-span-3 space-y-6">
+                    {/* ── Left Content (7/12) ── */}
+                    <div className="lg:col-span-7 space-y-10">
 
-                      {/* Contact Card */}
-                      <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono mb-4 flex items-center gap-2">
-                          <User className="w-3.5 h-3.5" /> Contact Information
-                        </h3>
+                      {/* Section: Professional Bio Data */}
+                      <section>
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-8 w-1 bg-primary rounded-full"></div>
+                          <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] font-mono">Professional Overview</h3>
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100">
-                            <div className="p-2 rounded-lg bg-primary/10"><Mail className="w-4 h-4 text-primary" /></div>
-                            <div className="min-w-0">
-                              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-mono">Email</p>
-                              <p className="text-sm font-medium text-slate-800 truncate">{selectedApplicant.email}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100">
-                            <div className="p-2 rounded-lg bg-accent/10"><Phone className="w-4 h-4 text-accent" /></div>
-                            <div className="min-w-0">
-                              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-mono">Phone</p>
-                              <p className="text-sm font-medium text-slate-800">{selectedApplicant.phone || 'Not provided'}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100">
-                            <div className="p-2 rounded-lg bg-purple-500/10"><Calendar className="w-4 h-4 text-purple-500" /></div>
-                            <div className="min-w-0">
-                              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-mono">Applied</p>
-                              <p className="text-sm font-medium text-slate-800">{selectedApplicant.date_applied ? new Date(selectedApplicant.date_applied).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</p>
-                            </div>
-                          </div>
-                          {selectedApplicant.cv_link && (
-                            <a href={selectedApplicant.cv_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 hover:border-primary/30 hover:bg-primary/5 transition-all group">
-                              <div className="p-2 rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors"><FileText className="w-4 h-4 text-emerald-500" /></div>
+                          <div className="group p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-primary/20 hover:bg-white hover:shadow-md transition-all duration-300">
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform"><Mail className="w-5 h-5" /></div>
                               <div className="min-w-0">
-                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-mono">Resume</p>
-                                <p className="text-sm font-medium text-primary group-hover:underline">View CV &rarr;</p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono mb-0.5">Email Address</p>
+                                <p className="text-sm font-bold text-slate-800 truncate">{selectedApplicant.email}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="group p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-accent/20 hover:bg-white hover:shadow-md transition-all duration-300">
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 rounded-xl bg-accent/10 text-accent group-hover:scale-110 transition-transform"><Phone className="w-5 h-5" /></div>
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono mb-0.5">Contact Number</p>
+                                <p className="text-sm font-bold text-slate-800">{selectedApplicant.phone || 'Not provided'}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="group p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-purple-500/20 hover:bg-white hover:shadow-md transition-all duration-300">
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 rounded-xl bg-purple-500/10 text-purple-500 group-hover:scale-110 transition-transform"><Calendar className="w-5 h-5" /></div>
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono mb-0.5">Submission Date</p>
+                                <p className="text-sm font-bold text-slate-800">{selectedApplicant.date_applied ? new Date(selectedApplicant.date_applied).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {selectedApplicant.cv_link && (
+                            <a href={selectedApplicant.cv_link} target="_blank" rel="noopener noreferrer"
+                              className="group p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-primary/50 hover:bg-black hover:shadow-xl transition-all duration-300">
+                              <div className="flex items-center gap-4">
+                                <div className="p-3 rounded-xl bg-primary/20 text-primary group-hover:rotate-12 transition-transform"><FileText className="w-5 h-5" /></div>
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 font-mono mb-0.5">Credential</p>
+                                  <p className="text-sm font-bold text-white group-hover:text-primary transition-colors flex items-center gap-2">View Full Resume <ExternalLink className="w-3 h-3" /></p>
+                                </div>
+                              </div>
+                            </a>
+                          )}
+
+                          {selectedApplicant.video_url && (
+                            <a href={selectedApplicant.video_url} target="_blank" rel="noopener noreferrer"
+                              className="group p-5 rounded-2xl bg-primary border border-primary/80 hover:bg-primary/90 hover:shadow-xl transition-all duration-300">
+                              <div className="flex items-center gap-4">
+                                <div className="p-3 rounded-xl bg-white/20 text-white group-hover:scale-110 transition-transform"><Video className="w-5 h-5" /></div>
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary-50 text-white/70 font-mono mb-0.5">Media</p>
+                                  <p className="text-sm font-bold text-white transition-colors flex items-center gap-2">Watch Intro Video <ExternalLink className="w-3 h-3" /></p>
+                                </div>
                               </div>
                             </a>
                           )}
                         </div>
-                      </div>
 
-                      {/* AI Scores */}
-                      <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono mb-4 flex items-center gap-2">
-                          <Star className="w-3.5 h-3.5" /> AI Scoring Analysis
-                        </h3>
-                        <div className="grid grid-cols-2 gap-5">
-                          {/* CV Score */}
-                          <div className="relative bg-white rounded-2xl p-5 border border-slate-100 overflow-hidden">
-                            <div className={`absolute top-0 left-0 w-1 h-full ${(selectedApplicant.cv_score ?? 0) < 5 ? 'bg-rose-500' : 'bg-emerald-500'}`}></div>
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="text-xs text-slate-400 font-mono font-medium">CV Score</p>
-                              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${(selectedApplicant.cv_score ?? 0) < 5 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                {(selectedApplicant.cv_score ?? 0) < 5 ? 'Below Threshold' : 'Pass'}
-                              </span>
+                        {selectedApplicant.video_summary && (
+                          <div className="mt-4 relative p-6 rounded-2xl bg-emerald-50/50 border border-emerald-100/50">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Video className="w-4 h-4 text-emerald-500" />
+                              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider font-mono">Video Summary</span>
                             </div>
-                            <p className={`text-4xl font-black font-mono ${getCvScoreColor(selectedApplicant.cv_score)}`}>{selectedApplicant.cv_score ?? '-'}<span className="text-lg text-slate-300 font-normal">/10</span></p>
-                            {selectedApplicant.cv_score_note && <p className="text-xs text-slate-500 font-mono mt-3 leading-relaxed border-t border-slate-100 pt-3">{selectedApplicant.cv_score_note}</p>}
+                            <p className="relative z-10 text-sm text-slate-700 font-sans leading-relaxed whitespace-pre-wrap">{selectedApplicant.video_summary}</p>
                           </div>
-                          {/* TCC Score */}
-                          <div className="relative bg-white rounded-2xl p-5 border border-slate-100 overflow-hidden">
-                            <div className={`absolute top-0 left-0 w-1 h-full ${(selectedApplicant.tcc_score ?? 0) < 50 ? 'bg-rose-500' : 'bg-emerald-500'}`}></div>
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="text-xs text-slate-400 font-mono font-medium">TCC Score</p>
-                              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${(selectedApplicant.tcc_score ?? 0) < 50 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                {(selectedApplicant.tcc_score ?? 0) < 50 ? 'Below Threshold' : 'Pass'}
-                              </span>
-                            </div>
-                            <p className={`text-4xl font-black font-mono ${getTccScoreColor(selectedApplicant.tcc_score)}`}>{selectedApplicant.tcc_score ?? '-'}<span className="text-lg text-slate-300 font-normal">/100</span></p>
-                            {selectedApplicant.tcc_remark && <p className="text-xs text-slate-500 font-mono mt-3 leading-relaxed border-t border-slate-100 pt-3">{selectedApplicant.tcc_remark}</p>}
-                          </div>
-                        </div>
-                      </div>
+                        )}
+                      </section>
 
-                      {/* Cover Letter */}
-                      {selectedApplicant.cover_letter && (
-                        <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
-                          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono mb-4 flex items-center gap-2">
-                            <FileText className="w-3.5 h-3.5" /> Cover Letter
+                      {/* Section: AI Talent Analysis */}
+                      <section>
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="h-8 w-1 bg-accent rounded-full"></div>
+                          <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] font-mono flex items-center gap-2">
+                            AI Talent Metrics
                           </h3>
-                          <p className="text-sm text-slate-700 font-mono bg-white p-5 rounded-xl border border-slate-100 whitespace-pre-wrap leading-relaxed">{selectedApplicant.cover_letter}</p>
                         </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                          {/* CV Score Card */}
+                          <div className="relative group bg-white rounded-3xl p-7 border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden">
+                            <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-10 transition-opacity group-hover:opacity-20 ${(selectedApplicant.cv_score ?? 0) < 5 ? 'bg-rose-500' : 'bg-emerald-500'}`}></div>
+                            <div className="relative z-10">
+                              <div className="flex items-center justify-between mb-6">
+                                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100"><Star className="w-4 h-4 text-slate-400" /></div>
+                                <span className={`text-[10px] font-black uppercase tracking-[0.15em] px-3 py-1 rounded-full ${(selectedApplicant.cv_score ?? 0) < 5 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                                  {(selectedApplicant.cv_score ?? 0) < 5 ? 'Low Match' : 'High Potential'}
+                                </span>
+                              </div>
+                              <div className="flex items-baseline gap-1">
+                                <span className={`text-5xl font-black font-mono tracking-tighter ${getCvScoreColor(selectedApplicant.cv_score)}`}>{selectedApplicant.cv_score ?? '-'}</span>
+                                <span className="text-xl text-slate-300 font-bold font-mono">/10</span>
+                              </div>
+                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1 mb-4">Resume Fit Score</p>
+                              {selectedApplicant.cv_score_note && (
+                                <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                  <p className="text-xs text-slate-600 font-mono leading-relaxed italic">"{selectedApplicant.cv_score_note}"</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* TCC Score Card */}
+                          <div className="relative group bg-white rounded-3xl p-7 border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden">
+                            <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-10 transition-opacity group-hover:opacity-20 ${(selectedApplicant.tcc_score ?? 0) < 50 ? 'bg-rose-500' : 'bg-primary-light'}`}></div>
+                            <div className="relative z-10">
+                              <div className="flex items-center justify-between mb-6">
+                                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100"><CheckCircle2 className="w-4 h-4 text-slate-400" /></div>
+                                <span className={`text-[10px] font-black uppercase tracking-[0.15em] px-3 py-1 rounded-full ${(selectedApplicant.tcc_score ?? 0) < 50 ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-primary/5 text-primary border border-primary/10'}`}>
+                                  {(selectedApplicant.tcc_score ?? 0) < 50 ? 'Re-test Required' : 'Elite Performer'}
+                                </span>
+                              </div>
+                              <div className="flex items-baseline gap-1">
+                                <span className={`text-5xl font-black font-mono tracking-tighter ${getTccScoreColor(selectedApplicant.tcc_score)}`}>{selectedApplicant.tcc_score ?? '-'}</span>
+                                <span className="text-xl text-slate-300 font-bold font-mono">/100</span>
+                              </div>
+                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1 mb-4">Technical Proficiency</p>
+                              {selectedApplicant.tcc_remark && (
+                                <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                  <p className="text-xs text-slate-600 font-mono leading-relaxed italic">"{selectedApplicant.tcc_remark}"</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Cover Letter Section */}
+                      {selectedApplicant.cover_letter && (
+                        <section>
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="h-8 w-1 bg-purple-500 rounded-full"></div>
+                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] font-mono">Personal Motivation</h3>
+                          </div>
+                          <div className="relative p-8 rounded-3xl bg-slate-50 border border-slate-200/50 italic">
+                            <div className="absolute top-4 left-4 text-slate-200"><MessageSquare className="w-8 h-8 opacity-20" /></div>
+                            <p className="relative z-10 text-sm text-slate-700 font-mono leading-loose whitespace-pre-wrap">{selectedApplicant.cover_letter}</p>
+                          </div>
+                        </section>
                       )}
+
+
                     </div>
 
-                    {/* ── Right Column (2/5) ── */}
-                    <div className="lg:col-span-2 space-y-6">
-                      <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-6 border border-slate-200/80 shadow-sm h-full flex flex-col">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono mb-4 flex items-center gap-2">
-                          <MessageSquare className="w-3.5 h-3.5" /> Email Draft
-                        </h3>
-                        <textarea value={editingDraft} onChange={e => setEditingDraft(e.target.value)} rows={10} placeholder="Write or edit the email draft here before sending..."
-                          className="flex-1 w-full px-4 py-4 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 font-mono text-sm transition-all resize-y leading-relaxed mb-4" />
-                        {editingDraft !== (selectedApplicant.email_draft || '') && (
-                          <div className="flex items-center gap-2 mb-3 px-1">
-                            <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                            <span className="text-xs text-amber-600 font-mono font-medium">Unsaved changes</span>
+                    {/* ── Right Content: Communication (5/12) ── */}
+                    <div className="lg:col-span-5">
+                      <div className="sticky top-0 space-y-6">
+                        <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden relative group">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+                          <div className="relative z-10 flex flex-col h-full">
+                            <div className="flex items-center justify-between mb-8">
+                              <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] font-mono flex items-center gap-3">
+                                <Send className="w-4 h-4 text-primary" /> Outreach Portal
+                              </h3>
+                              {selectedApplicant.email_sent && (
+                                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
+                                  <CheckCircle2 className="w-3 h-3" /> Sent
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="relative mb-6">
+                              <textarea value={editingDraft} onChange={e => setEditingDraft(e.target.value)} rows={14}
+                                placeholder="Craft your personalized response..."
+                                className="w-full px-6 py-6 rounded-3xl bg-slate-800/50 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 font-mono text-sm text-slate-100 transition-all resize-none leading-relaxed custom-scrollbar" />
+
+                              <div className="absolute bottom-4 right-6 flex items-center gap-3">
+                                {editingDraft !== (selectedApplicant.email_draft || '') && (
+                                  <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                                    <span className="text-[10px] text-amber-500 font-black uppercase tracking-widest">Unsaved</span>
+                                  </motion.div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-4">
+                              <button onClick={handleSaveDraft} disabled={savingDraft || editingDraft === (selectedApplicant.email_draft || '')}
+                                className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-white/5 text-slate-300 font-mono text-xs font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all border border-white/10 disabled:opacity-20 shadow-lg">
+                                {savingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                {savingDraft ? 'Syncing...' : 'Update Draft'}
+                              </button>
+
+                              <button onClick={() => handleSendEmail(selectedApplicant)} disabled={sendingEmail === selectedApplicant.id || selectedApplicant.email_sent}
+                                className={`w-full flex items-center justify-center gap-3 px-6 py-5 rounded-2xl font-mono text-sm font-black uppercase tracking-[0.15em] transition-all shadow-2xl group ${selectedApplicant.email_sent
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 cursor-default'
+                                  : 'bg-orange-600 text-white hover:bg-orange-700 hover:shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98]'
+                                  } disabled:opacity-50`}>
+                                {sendingEmail === selectedApplicant.id ? <Loader2 className="w-5 h-5 animate-spin" /> : selectedApplicant.email_sent ? <CheckCircle2 className="w-5 h-5" /> : <Send className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
+                                {selectedApplicant.email_sent ? 'Delivered' : 'Dispatch Email'}
+                              </button>
+                            </div>
+
+                            {selectedApplicant.email_sent && selectedApplicant.email_sent_at && (
+                              <div className="mt-6 p-4 rounded-2xl bg-slate-800/30 border border-slate-700/50">
+                                <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest mb-1">Transmission Timestamp</p>
+                                <p className="text-xs text-emerald-400 font-mono font-bold tracking-tight">
+                                  {new Date(selectedApplicant.email_sent_at).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        <div className="flex flex-col gap-3">
-                          <button onClick={handleSaveDraft} disabled={savingDraft || editingDraft === (selectedApplicant.email_draft || '')}
-                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-slate-700 font-mono text-sm font-semibold hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 shadow-sm">
-                            {savingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                            {savingDraft ? 'Saving...' : 'Save Draft'}
-                          </button>
-                          <button onClick={() => handleSendEmail(selectedApplicant)} disabled={sendingEmail === selectedApplicant.id || selectedApplicant.email_sent}
-                            className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-mono text-sm font-bold transition-all shadow-md ${selectedApplicant.email_sent
-                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default shadow-none'
-                              : 'bg-gradient-to-r from-primary to-accent text-white hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5'
-                              } disabled:opacity-50`}>
-                            {sendingEmail === selectedApplicant.id ? <Loader2 className="w-4 h-4 animate-spin" /> : selectedApplicant.email_sent ? <CheckCircle2 className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-                            {selectedApplicant.email_sent ? 'Email Sent' : 'Send Email'}
-                          </button>
                         </div>
-                        {selectedApplicant.email_sent && selectedApplicant.email_sent_at && (
-                          <p className="text-xs text-emerald-600 font-mono flex items-center gap-1.5 mt-3 px-1">
-                            <CheckCircle2 className="w-3 h-3" />Sent on {new Date(selectedApplicant.email_sent_at).toLocaleString()}
-                          </p>
-                        )}
                       </div>
                     </div>
 
                   </div>
                 </div>
               </div>
+
             </motion.div>
           </motion.div>
         )}
