@@ -27,8 +27,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    // Temporarily bypassing redirect for verification
-    // return <Navigate to="/hr/login" replace />;
+    return <Navigate to="/hr/login" replace />;
   }
 
   return <>{children}</>;

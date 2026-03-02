@@ -111,9 +111,9 @@ export default function HRDashboard() {
       .channel('public:applicants')
       .on(
         'postgres_changes',
-        { event: '*', scheme: 'public', table: 'applicants' },
+        { event: '*', schema: 'public', table: 'applicants' },
         (payload: any) => {
-          console.log('Realtime update received:', payload);
+
 
           if (payload.eventType === 'INSERT') {
             const newApplicant = payload.new as Applicant;
@@ -144,7 +144,7 @@ export default function HRDashboard() {
         }
       )
       .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
+
       });
 
     return () => {

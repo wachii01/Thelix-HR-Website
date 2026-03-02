@@ -116,7 +116,7 @@ export default function Apply() {
           }
         });
 
-        console.log('Webhook Response:', proxyError || webhookResponse);
+
 
         if (proxyError || !webhookResponse?.success) {
           console.warn('Webhook failed, but application succeeded', webhookResponse?.error || proxyError);
