@@ -4,12 +4,12 @@
   --font-sans: "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   --color-primary: #F48220;
-  --color-accent: #2575FC;
+  --color-accent: #000000;
 }
 
 body {
   font-family: var(--font-mono);
-  background-color: #f8fafc;
+  background-color: #FFFFFF;
   color: #0f172a;
 }
 
@@ -21,7 +21,7 @@ h1, h2, h3, h4, h5, h6 {
   background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
 }
 
@@ -29,15 +29,15 @@ h1, h2, h3, h4, h5, h6 {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .bg-mesh {
-  background-color: #f8fafc;
+  background-color: #FFFFFF;
   background-image: 
     radial-gradient(at 0% 0%, rgba(244, 130, 32, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(37, 117, 252, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(0, 0, 0, 0.1) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(244, 130, 32, 0.15) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(37, 117, 252, 0.15) 0px, transparent 50%);
+    radial-gradient(at 0% 100%, rgba(0, 0, 0, 0.1) 0px, transparent 50%);
   background-attachment: fixed;
 }

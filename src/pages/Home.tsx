@@ -55,7 +55,7 @@ function GradientOrbs() {
       <motion.div
         className="absolute w-[600px] h-[600px] rounded-full"
         style={{
-          background: 'radial-gradient(circle, rgba(15, 118, 110, 0.25) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(244, 130, 32, 0.20) 0%, transparent 70%)',
           top: '10%',
           left: '60%',
         }}
@@ -70,7 +70,7 @@ function GradientOrbs() {
       <motion.div
         className="absolute w-[500px] h-[500px] rounded-full"
         style={{
-          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.20) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(0, 0, 0, 0.15) 0%, transparent 70%)',
           bottom: '5%',
           left: '10%',
         }}
@@ -85,7 +85,7 @@ function GradientOrbs() {
       <motion.div
         className="absolute w-[400px] h-[400px] rounded-full"
         style={{
-          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(244, 130, 32, 0.15) 0%, transparent 70%)',
           top: '50%',
           left: '40%',
         }}
@@ -108,8 +108,8 @@ function AnimatedGrid() {
         className="absolute inset-0"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(15, 118, 110, 0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(15, 118, 110, 0.06) 1px, transparent 1px)
+            linear-gradient(rgba(244, 130, 32, 0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(244, 130, 32, 0.06) 1px, transparent 1px)
           `,
           backgroundSize: '60px 60px',
         }}
@@ -117,7 +117,7 @@ function AnimatedGrid() {
       {/* Animated scan line */}
       <motion.div
         className="absolute left-0 right-0 h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(15, 118, 110, 0.3), transparent)' }}
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(244, 130, 32, 0.2), transparent)' }}
         animate={{ top: ['-5%', '105%'] }}
         transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
       />
@@ -188,8 +188,8 @@ export default function Home() {
               title="View Open Positions"
               subtitle="Explore career opportunities"
               size="md"
-              gradientLight={{ from: 'from-[#2575FC]/50', via: 'via-[#2575FC]/40', to: 'to-[#2575FC]/60' }}
-              gradientDark={{ from: 'from-[#2575FC]/30', via: 'via-black/50', to: 'to-black/70' }}
+              gradientLight={{ from: 'from-primary/50', via: 'via-primary/40', to: 'to-primary/60' }}
+              gradientDark={{ from: 'from-primary/30', via: 'via-black/50', to: 'to-black/70' }}
               onClick={() => navigate('/jobs')}
             />
             <GradientButton
@@ -348,17 +348,9 @@ export default function Home() {
         <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
 
           {/* Left Column */}
-          <div className="w-full lg:w-1/3 flex flex-col gap-12">
+          <div className="w-full lg:w-1/3 flex flex-col gap-12 justify-center">
             <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="text-center lg:text-right">
               <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg mx-auto lg:ml-auto lg:mr-0 mb-4 shadow-lg shadow-primary/30">1</div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">13th Month Salary</h3>
-              <p className="text-slate-600 font-medium leading-relaxed">
-                Enjoy an extra paycheck at the end of the year as a reward for your contribution. We believe in sharing success and paying it forward.
-              </p>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="text-center lg:text-right">
-              <div className="w-10 h-10 rounded-full bg-[#f59e0b] text-white flex items-center justify-center font-bold text-lg mx-auto lg:ml-auto lg:mr-0 mb-4 shadow-lg shadow-amber-500/30">2</div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Continuous Learning</h3>
               <p className="text-slate-600 font-medium leading-relaxed">
                 Growth never stops here. Get free access to courses, certifications, learning tools, and mentorship opportunities to level up your skills on your own terms.
@@ -384,25 +376,38 @@ export default function Home() {
           </motion.div>
 
           {/* Right Column */}
-          <div className="w-full lg:w-1/3 flex flex-col gap-12">
+          <div className="w-full lg:w-1/3 flex flex-col gap-12 justify-center">
             <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-center lg:text-left">
-              <div className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg mx-auto lg:mr-auto lg:ml-0 mb-4 shadow-lg shadow-accent/30">3</div>
+              <div className="w-10 h-10 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg mx-auto lg:mr-auto lg:ml-0 mb-4 shadow-lg shadow-accent/30">2</div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Monthly Data Allowance</h3>
               <p className="text-slate-600 font-medium leading-relaxed">
                 Whether you're working from home, on the go, or researching your next big idea, we cover your data costs so you stay connected without stress.
               </p>
             </motion.div>
-
-            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="text-center lg:text-left">
-              <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-lg mx-auto lg:mr-auto lg:ml-0 mb-4 shadow-lg shadow-emerald-500/30">4</div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Health Coverage</h3>
-              <p className="text-slate-600 font-medium leading-relaxed">
-                Your well-being is our priority. We offer medical support that covers you when it counts for checkups, emergencies, and everything in between.
-              </p>
-            </motion.div>
           </div>
 
         </div>
+      </section>
+
+      {/* Call to Action Section */}
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 relative z-10 flex justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="flex flex-col items-center text-center"
+        >
+          <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-8 tracking-tight">Ready to build the future with us?</h2>
+          <GradientButton
+            icon={<Briefcase />}
+            title="View Open Positions"
+            subtitle="Explore career opportunities"
+            size="lg"
+            gradientLight={{ from: 'from-primary/50', via: 'via-primary/40', to: 'to-primary/60' }}
+            gradientDark={{ from: 'from-primary/30', via: 'via-black/50', to: 'to-black/70' }}
+            onClick={() => navigate('/jobs')}
+          />
+        </motion.div>
       </section>
 
     </div>
